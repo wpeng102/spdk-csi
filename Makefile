@@ -12,6 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+include hack/tools/tools.mk
+
+CHARTSDIR ?= $(CURDIR)/hack/charts
+SPDK_CSI_CONTROLLER_CHART ?= $(CURDIR)/dpf/helm
+SPDK_CSI_CONTROLLER_CHART_VER ?= v0.1.0
+SPDK_CSI_CONTROLLER_CHART_NAME = spdk-csi-controller-chart
+
+$(CHARTSDIR):
+	@mkdir -p $@
+
 # output dir
 OUT_DIR := ./_out
 # dir for tools: e.g., golangci-lint
@@ -34,6 +44,9 @@ ifeq ($(origin CSI_IMAGE_TAG), undefined)
   CSI_IMAGE_TAG := canary
 endif
 CSI_IMAGE := $(CSI_IMAGE_REGISTRY)/spdkcsi:$(CSI_IMAGE_TAG)
+
+# By default the helm registry is assumed to be an OCI registry. This variable should be overwritten when using a https helm repository.
+export HELM_REGISTRY ?= oci://$(CSI_IMAGE_REGISTRY)
 
 # default target
 all: spdkcsi lint test
@@ -144,3 +157,20 @@ image: spdkcsi
 clean:
 	rm -f $(OUT_DIR)/spdkcsi
 	go clean -testcache
+
+# docker push image
+.PHONY: push-image
+push-image:
+	docker push $(CSI_IMAGE)
+
+.PHONY: helm-package
+helm-package: $(CHARTSDIR) helm
+	$(HELM) package $(SPDK_CSI_CONTROLLER_CHART) --version $(SPDK_CSI_CONTROLLER_CHART_VER) --destination $(CHARTSDIR)
+
+.PHONY: helm-push
+helm-push: $(CHARTSDIR) helm ## Push helm chart for snap controller
+	$(HELM) push $(CHARTSDIR)/$(SPDK_CSI_CONTROLLER_CHART_NAME)-$(SPDK_CSI_CONTROLLER_CHART_VER).tgz $(HELM_REGISTRY)
+
+.PHONY: generate-docs-helm
+generate-docs-helm: helm-docs ## Generate helm chart documentation.
+	$(HELM_DOCS) --ignore-file=.helmdocsignore

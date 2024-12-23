@@ -4,3 +4,8 @@
 *.orig
 *.patch
 *.rej
+*.tar
+*.tgz
+*.tar.gz
+hack/tools/bin
+hack/charts
