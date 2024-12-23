@@ -9,3 +9,4 @@
 *.tar.gz
 hack/tools/bin
 hack/charts
+charts/spdk-csi
